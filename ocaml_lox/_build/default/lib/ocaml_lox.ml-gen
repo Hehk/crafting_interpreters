@@ -1,0 +1,6 @@
+(** @canonical Ocaml_lox.Scanner *)
+module Scanner = Ocaml_lox__Scanner
+
+
+(** @canonical Ocaml_lox.Token *)
+module Token = Ocaml_lox__Token
