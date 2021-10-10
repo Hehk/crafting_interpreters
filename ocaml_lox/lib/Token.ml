@@ -1,6 +1,5 @@
 type token = 
-  (* Single-character tokens *)
-  |LEFT_PAREN
+  | LEFT_PAREN
   | RIGHT_PAREN
   | LEFT_BRACE
   | RIGHT_BRACE
@@ -47,7 +46,7 @@ type token =
 
   | EOF
 
-type t = {
+type tokenInfo = {
   token: token;
   lexeme: string;
   line: int    
