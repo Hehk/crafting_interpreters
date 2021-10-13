@@ -45,6 +45,9 @@ type token =
   | WHILE
 
   | EOF
+  (* TODO remove this once error handling is added properly *)
+  | ERROR
+  [@@deriving eq, show]
 
 type tokenInfo = {
   token: token;
@@ -52,3 +55,21 @@ type tokenInfo = {
   line: int    
 }
 
+let getKeyword = function
+| "and" -> Some AND
+| "class" -> Some CLASS
+| "else" -> Some ELSE
+| "false" -> Some FALSE
+| "fun" -> Some FUN
+| "for"-> Some FOR
+| "if"-> Some IF
+| "nil"-> Some NIL
+| "or"-> Some OR
+| "print"-> Some PRINT
+| "return" -> Some RETURN
+| "super" -> Some SUPER
+| "this" -> Some THIS
+| "true" -> Some TRUE
+| "var" -> Some VAR
+| "while" -> Some WHILE
+| _ -> None
