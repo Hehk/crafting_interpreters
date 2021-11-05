@@ -21,21 +21,28 @@ module Helpers = struct
 
   let addNoToken state = { state with start = state.current }
 
-  let peek state source = String.get source state.current
-  let peekNext state source = String.get source (state.current + 1)
+  let peek state source =
+    try Some (String.get source state.current) with
+      Invalid_argument _ -> None
+  let peekNext state source = 
+    try Some (String.get source (state.current + 1)) with
+      Invalid_argument _ -> None
   
   let isAtEnd state source = state.current >= String.length source
-  let matchChar state source c =
-    let nextChar = peek state source in
-    phys_equal nextChar c
 
+  let mapF f = function
+  | None -> false
+  | Some c -> f c
+
+  let matchChar state source c =
+    mapF (fun nextChar -> phys_equal nextChar c) (peek state source)
   (* Advance the current location of the scanner *)
   let advance state = { state with current = state.current + 1 }
 
   let initialState = { tokens = []; start = 0; current = 0; line = 0}
 
-  let isDigit c = let open Char in c >= '0' && c <= '9'
-  let isAlpha c = let open Char in (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || phys_equal c '_'
+  let isDigit = mapF (fun c -> let open Char in c >= '0' && c <= '9')
+  let isAlpha = mapF (fun c -> let open Char in (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || phys_equal c '_')
   let isAlphaNumeric c = isDigit c || isAlpha c
 
 end
@@ -80,7 +87,7 @@ let scanToken state source =
 
   | '/' -> if Helpers.matchChar newState source '/' then
       let curState = ref (Helpers.advance newState) in
-      while not (Helpers.isAtEnd !curState source) && not (phys_equal (Helpers.peek !curState source) '\n') do
+      while not (Helpers.isAtEnd !curState source) && not (Helpers.matchChar !curState source '\n') do
         curState := Helpers.advance !curState
       done;
       {
@@ -101,8 +108,8 @@ let scanToken state source =
   | '"' -> 
     let curState = ref (Helpers.advance newState) in
     let atEnd = fun state -> Helpers.isAtEnd state source in
-    while not (atEnd !curState) && not(phys_equal(Helpers.peek !curState source) '"') do 
-      let isNewLine = phys_equal (Helpers.peek !curState source) '\n' in
+    while not (atEnd !curState) && not(Helpers.matchChar !curState source '"') do 
+      let isNewLine = Helpers.matchChar !curState source '\n' in
       curState := {
         (Helpers.advance !curState) with
         line = if isNewLine then !curState.line + 1 else !curState.line
@@ -126,13 +133,13 @@ let scanToken state source =
 
   (* TODO fill this out *)
   | _ -> 
-    if Helpers.isDigit c then
+    if Helpers.isDigit (Some c) then
       let curState = ref newState in
       while Helpers.isDigit (Helpers.peek !curState source) do
         curState := Helpers.advance !curState
       done;
 
-      (if phys_equal '.' (Helpers.peek !curState source) && Helpers.isDigit (Helpers.peekNext !curState source) then
+      (if Helpers.matchChar !curState source '.' && Helpers.isDigit (Helpers.peekNext !curState source) then
         (* consume the . *)
         curState := Helpers.advance !curState;
         while Helpers.isDigit (Helpers.peek !curState source) do
@@ -147,7 +154,7 @@ let scanToken state source =
         tokens = { token = NUMBER(Float.of_string num); line = !curState.line; lexeme = num } :: state.tokens
       }
 
-    else if Helpers.isAlpha c then
+    else if Helpers.isAlpha (Some c) then
       let curState = ref newState in
       while Helpers.isAlphaNumeric (Helpers.peek !curState source) do
         curState := Helpers.advance !curState
@@ -216,6 +223,11 @@ let%test "scanTokens string" =
   let source = "\"test\"" in
   let tokenList = List.map ~f:(fun x -> x.token) (scanTokens Helpers.initialState source) in
   List.equal equal_token tokenList [STRING "test"; EOF]
+
+let%test "scanTokens random text" =
+  let source = "random" in
+  let tokenList = List.map ~f:(fun x -> x.token) (scanTokens Helpers.initialState source) in
+  List.equal equal_token tokenList [IDENTIFIER "random"; EOF]
 
 let%test "scanTokens identifiers and keywords" = 
   testScanTokens
