@@ -3,6 +3,14 @@ let file_param =
   let open Command.Param in
   anon (maybe ("filename" %: string))
 
+let runCode code =
+  code
+  |> Lox.Scanner.run
+  |> List.map ~f:(fun (t: Lox.Token.tokenInfo) -> t.token)
+  |> Lox.Parser.run
+  |> Lox.Expr.evaluate
+  |> Lox.Expr.show_literal
+  |> Stdio.printf "Result: %s"
 
 let rec run_repl () =
   print_endline "Welcome to the lox repl! Type away!";
@@ -14,18 +22,17 @@ let rec run_repl () =
     if phys_equal (String.strip input) "" then
       run_repl ()
     else 
-      input
-      |> Lox.Scanner.run
-      |> List.map ~f:(fun (t: Lox.Token.tokenInfo) -> t.token)
-      |> Lox.Parser.run
-      |> Lox.Expr.evaluate
-      |> Lox.Expr.show_literal
-      |> Stdio.printf "Result: %s"
+      runCode input;
+      run_repl ()
 
 let run filename =
   match filename with
   | None -> run_repl ()
-  | Some filename -> Stdio.printf "File %s" filename
+  | Some filename -> 
+    let lines = In_channel.read_lines filename in
+    let code = List.fold ~init:"" ~f:(fun acc s -> acc ^ "\n" ^ s) lines in
+    let (): unit = printf "CODE: %s\n" code in
+    runCode code
 
 let command =
   Command.basic
