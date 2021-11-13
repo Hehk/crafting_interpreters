@@ -53,7 +53,7 @@ type tokenInfo = {
   token: token;
   lexeme: string;
   line: int    
-}
+} [@@deriving eq, show]
 
 let getKeyword = function
 | "and" -> Some AND
@@ -73,3 +73,5 @@ let getKeyword = function
 | "var" -> Some VAR
 | "while" -> Some WHILE
 | _ -> None
+
+let fakeTi token = { token; lexeme="test"; line=0}

@@ -20,14 +20,14 @@ let tokenToLiteral = function
 | _ -> Object
 
 type expr =
-  | Binary of expr * Token.token * expr
+  | Binary of expr * Token.tokenInfo * expr
   | Grouping of expr
   | Literal of literal
-  | Unary of Token.token * expr
+  | Unary of Token.tokenInfo * expr
   [@@deriving eq, show]
 
 (* let isFalse *)
-exception RuntimeError of token * string
+exception RuntimeError of tokenInfo * string
 exception ExprError of string
 
 let is_truthy = function
@@ -54,22 +54,27 @@ let is_equal l r =
   (* TODO at some point do object compare *)
   | _ -> false
 
-let rec evaluate = function
-| Unary (token, expr) -> handleUnary token expr
-| Literal value -> value
-| Binary (left, token, right) -> handleBinary left token right
-  (* TODO: handle later *)
-| _ -> Nil
+let rec evaluate expr =
+  try match expr with
+  | Unary (token, expr) -> handleUnary token expr
+  | Literal value -> value
+  | Binary (left, token, right) -> handleBinary left token right
+    (* TODO: handle later *)
+  | _ -> Nil
+  with
+  | RuntimeError (tokenInfo, message) -> 
+      Stdio.printf "%s\n[line: %i]" message tokenInfo.line; 
+      Nil
 and handleUnary token expr = 
   let value = evaluate expr in
-  match token with
+  match token.token with
   | BANG -> Bool (not (is_truthy value))
   | MINUS -> is_num token value (fun n -> Num (Float.neg n))
   | _ -> raise (ExprError "You done fucked up")
 and handleBinary left token right =
   let left = evaluate left in
   let right = evaluate right in
-  match token with
+  match token.token with
   | MINUS -> is_num token left (fun l -> is_num token right (fun r -> Num (Float.sub l r)))
   | PLUS -> (match (left, right) with
     | (Num l, Num r) -> Num (l +. r)
@@ -88,15 +93,18 @@ and handleBinary left token right =
 
   | _ -> raise (ExprError "You done fucked up")
 
+
+let ti token = { token; lexeme = "..."; line = 0 }
+
 let%test "Unary negative" =
-  let literal = evaluate (Unary (Token.MINUS, Literal (Num 5.))) in
+  let literal = evaluate (Unary (ti Token.MINUS, Literal (Num 5.))) in
   equal_literal literal (Num (-5.))
 
 let%test "Binary number add" =
-  let literal = evaluate (Binary (Literal (Num 5.), PLUS, Literal (Num 5.))) in
+  let literal = evaluate (Binary (Literal (Num 5.), ti PLUS, Literal (Num 5.))) in
   equal_literal literal (Num 10.0)
 
 let%test "Binary string add" =
-  let literal = evaluate (Binary (Literal (Str "Hello "), PLUS, Literal (Str "World"))) in
+  let literal = evaluate (Binary (Literal (Str "Hello "), ti PLUS, Literal (Str "World"))) in
   equal_literal literal (Str "Hello World")
 

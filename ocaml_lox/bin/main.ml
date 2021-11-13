@@ -6,7 +6,6 @@ let file_param =
 
 let runCode code =
   code |> Lox.Scanner.run
-  |> List.map ~f:(fun (t : Lox.Token.tokenInfo) -> t.token)
   |> Lox.Parser.run |> Lox.Expr.evaluate |> Lox.Expr.show_literal
   |> Stdio.printf "Result: %s"
 

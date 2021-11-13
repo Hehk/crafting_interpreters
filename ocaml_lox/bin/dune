@@ -1,1 +1,1 @@
-executable (public_name ocaml_lox) (name main) (libraries lox core stdio)
+(executable (public_name ocaml_lox) (name main) (libraries lox core stdio))

@@ -1,4 +1,5 @@
 open Base
+open Token
 
 (*
 expression     → equality ;
@@ -33,13 +34,13 @@ let rec primary tokens =
   match tokens with
   (* TODO add specific error message *)
   | [] -> genericError ()
-  | token :: tl -> match token with
+  | token :: tl -> match token.token with
     | FALSE | TRUE | NIL | NUMBER _ | STRING _ -> 
-      (Expr.Literal (Expr.tokenToLiteral token), tl)
+      (Expr.Literal (Expr.tokenToLiteral token.token), tl)
     | LEFT_PAREN -> (
       let (expr, tokens) = expression tl in
       match tokens with
-      | RIGHT_PAREN :: tl -> (Expr.Grouping expr, tl)
+      | { token= RIGHT_PAREN; _ } :: tl -> (Expr.Grouping expr, tl)
       (* TODO add error, "Expect ')' after expression" *)
       | _ -> genericError ()
     )
@@ -47,7 +48,7 @@ let rec primary tokens =
     | _ -> genericError ()
 and unary = function
 | [] -> genericError ()
-| hd :: tl -> match hd with
+| hd :: tl -> match hd.token with
   | Token.BANG | Token.MINUS ->  
     let (rightExpr, tokens) = unary tl in
     (Expr.Unary(hd, rightExpr), tokens)
@@ -55,7 +56,7 @@ and unary = function
 and factor tokens =
   let rec nested expr = function
   | [] -> (expr, [])
-  | hd::tl -> (match hd with
+  | hd::tl -> (match hd.token with
     | Token.SLASH
     | Token.STAR -> 
       let (right, tl) = unary tl in
@@ -68,7 +69,7 @@ and factor tokens =
 and term tokens =
   let rec nested expr = function
   | [] -> (expr, [])
-  | hd::tl -> (match hd with
+  | hd::tl -> (match hd.token with
     | Token.MINUS
     | Token.PLUS -> 
       let (right, tl) = factor tl in
@@ -81,7 +82,7 @@ and term tokens =
 and comparison tokens =
   let rec nested expr = function
   | [] -> (expr, [])
-  | hd::tl -> (match hd with
+  | hd::tl -> (match hd.token with
     | Token.GREATER
     | Token.GREATER_EQUAL
     | Token.LESS
@@ -96,7 +97,7 @@ and comparison tokens =
 and equality tokens =
   let rec nested expr = function
   | [] -> (expr, [])
-  | hd::tl -> (match hd with
+  | hd::tl -> (match hd.token with
     | Token.EQUAL
     | Token.EQUAL_EQUAL ->
       let (right, tl) = comparison tl in
@@ -117,13 +118,14 @@ let run tokens =
       Stdio.eprintf "there was an error: %s%s\n" msg stack;
       raise e
 
+
 let%test "initial parse" =
   let open Token in
-  let expr = run [NUMBER 5.; STAR; NUMBER 4.; EQUAL_EQUAL; NUMBER 2.; PLUS; NUMBER 18.;] in
+  let expr = run @@ List.map ~f:fakeTi [NUMBER 5.; STAR; NUMBER 4.; EQUAL_EQUAL; NUMBER 2.; PLUS; NUMBER 18.;] in
   Expr.equal_expr expr (Expr.Binary (
-   (Expr.Binary ((Expr.Literal (Expr.Num 5.)), Token.STAR,
+   (Expr.Binary ((Expr.Literal (Expr.Num 5.)), fakeTi Token.STAR,
       (Expr.Literal (Expr.Num 4.)))),
-   Token.EQUAL_EQUAL,
-   (Expr.Binary ((Expr.Literal (Expr.Num 2.)), Token.PLUS,
+   fakeTi Token.EQUAL_EQUAL,
+   (Expr.Binary ((Expr.Literal (Expr.Num 2.)), fakeTi Token.PLUS,
       (Expr.Literal (Expr.Num 18.))))
    ))
