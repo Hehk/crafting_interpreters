@@ -1,8 +1,6 @@
 open Statement
 open Base
 
-let snd (_, x) = x
-
 (* TODO handle runtime errors *)
 let handleStatement environment stat =
   match stat with

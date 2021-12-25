@@ -5,9 +5,9 @@ let file_param =
   anon (maybe ("filename" %: string))
 
 let runCode code =
-  code |> Lox.Scanner.run
-  |> Lox.Parser.run |> Lox.Expr.evaluate |> Lox.Expr.show_literal
-  |> Stdio.printf "Result: %s"
+  (* TODO handle the error *)
+  let statements, _err = code |> Lox.Scanner.run |> Lox.Parser.run in
+  statements |> Lox.Interpreter.run |> ignore
 
 let rec run_repl () =
   print_endline "Welcome to the lox repl! Type away!";
