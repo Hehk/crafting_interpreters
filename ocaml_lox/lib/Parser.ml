@@ -26,11 +26,12 @@ let is state token =
 
 let genericError () = raise (ParseError "Failed to find an expression")
 
+let error s = raise (ParseError s)
+
 let rec primary tokens =
   let open Token in
   match tokens with
-  (* TODO add specific error message *)
-  | [] -> genericError ()
+  | [] -> error "Ran out of tokens in primary"
   | token :: tl -> (
       match token.token with
       | FALSE | TRUE | NIL | NUMBER _ | STRING _ ->
@@ -39,10 +40,8 @@ let rec primary tokens =
           let expr, tokens = expression tl in
           match tokens with
           | { token = RIGHT_PAREN; _ } :: tl -> (Expr.Grouping expr, tl)
-          (* TODO add error, "Expect ')' after expression" *)
-          | _ -> genericError ())
-      (* TODO add specific error message *)
-      | _ -> genericError ())
+          | _ -> error "Failed to find Right Paren")
+      | _ -> error (Token.show_token token.token ^ " is invalid for primary"))
 
 and unary = function
   | [] -> genericError ()

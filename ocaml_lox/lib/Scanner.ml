@@ -233,8 +233,7 @@ let%test "scanTokens identifiers and keywords" =
   testScanTokens
     "var xyz123 = true;"
     [VAR; IDENTIFIER "xyz123"; EQUAL; TRUE; SEMICOLON; EOF]
-
-
+  
 let run = scanTokens Helpers.initialState
 
 
