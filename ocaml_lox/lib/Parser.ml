@@ -110,22 +110,85 @@ and equality tokens =
 
 and expression tokens = equality tokens
 
-let getExpr (expr, _tokens) = expr
-let run tokens = 
-  try getExpr (expression tokens) with e ->
-    let msg = Exn.to_string e
-    and stack = Backtrace.to_string (Backtrace.get ()) in
-      Stdio.eprintf "there was an error: %s%s\n" msg stack;
-      raise e
+let createStatement tokens =
+  let (statement, tokens) = match tokens with
+  | { token = Token.PRINT; _ } :: tokens ->
+    let (expr, tl) = expression tokens in
+    (Statement.Print expr, tl)
+  | { token = Token.VAR; _ } :: {token = Token.IDENTIFIER name; _ } :: { token = Token.EQUAL; _ } :: tokens ->
+    let (expr, tl) = expression tokens in
+    (Statement.Variable (name, expr), tl)
+  | tokens -> 
+    let (expr, tl) = expression tokens in
+    (Statement.Expression expr, tl)
+  in
+
+  let tokens = match tokens with
+  | { token = Token.SEMICOLON; _ } :: tl -> tl
+  | _ -> raise (ParseError "Statements must end with a semicolon") in
+  (Some statement, tokens)
+
+(* Step through the code until there is a point where things might be continuable... *)
+let rec syncronize tokens =
+  match tokens with
+  | { token = Token.SEMICOLON; _ } :: tl -> tl
+  | hd :: tl -> (match hd.token with
+    | CLASS
+    | FUN
+    | VAR
+    | FOR
+    | IF
+    | WHILE
+    | PRINT
+    | RETURN -> tokens
+    | _ -> syncronize tl)
+  | [] -> []
+
+let noError (statement, tokens) = (statement, tokens, None)
+let add x xs = match x with
+| Some x -> x :: xs
+| None -> xs
+
+let rec run ?(statements = []) ?(errors = []) tokens =
+  let (statement, tokens, error) = try noError @@ createStatement tokens with
+    ParseError message -> 
+      (None, syncronize tokens, Some(message))
+  in
+  let statements = add statement statements in
+  let errors = add error errors in
+  if phys_equal (List.length tokens) 0 then
+    (List.rev statements, List.rev errors)
+  else
+    run ~statements ~errors tokens
+
+(* let run tokens = *) 
+(*   try getExpr (expression tokens) with e -> *)
+(*     let msg = Exn.to_string e *)
+(*     and stack = Backtrace.to_string (Backtrace.get ()) in *)
+(*       Stdio.eprintf "there was an error: %s%s\n" msg stack; *)
+(*       raise e *)
 
 
 let%test "initial parse" =
-  let open Token in
-  let expr = run @@ List.map ~f:fakeTi [NUMBER 5.; STAR; NUMBER 4.; EQUAL_EQUAL; NUMBER 2.; PLUS; NUMBER 18.;] in
-  Expr.equal_expr expr (Expr.Binary (
+  let (statements, _) = run @@ List.map ~f:fakeTi [NUMBER 5.; STAR; NUMBER 4.; EQUAL_EQUAL; NUMBER 2.; PLUS; NUMBER
+  18.; SEMICOLON] in
+  let statement = List.hd_exn statements in
+  Statement.equal_statement statement (Statement.Expression (Expr.Binary (
    (Expr.Binary ((Expr.Literal (Expr.Num 5.)), fakeTi Token.STAR,
       (Expr.Literal (Expr.Num 4.)))),
-   fakeTi Token.EQUAL_EQUAL,
-   (Expr.Binary ((Expr.Literal (Expr.Num 2.)), fakeTi Token.PLUS,
+   fakeTi EQUAL_EQUAL,
+   (Expr.Binary ((Expr.Literal (Expr.Num 2.)), fakeTi PLUS,
       (Expr.Literal (Expr.Num 18.))))
-   ))
+   )))
+
+let%test "synchronize, recover after semicolor" =
+  let (statements, _) = run @@ List.map ~f:fakeTi [STAR; STAR; STAR; SEMICOLON; NUMBER 5.; SEMICOLON] in
+  let statement = List.hd_exn statements in
+  Statement.equal_statement statement (Statement.Expression (Expr.Literal (Expr.Num 5.)))
+
+let%test "synchronize, recover on var" =
+  let (statements, _) = run @@ List.map ~f:fakeTi [STAR; STAR; STAR; VAR; IDENTIFIER "nice"; EQUAL; NUMBER 69.; SEMICOLON] in
+  let statement = List.hd_exn statements in
+  Statement.equal_statement statement (Statement.Variable ("nice", (Expr.Literal (Expr.Num 69.))
+  ))
+
